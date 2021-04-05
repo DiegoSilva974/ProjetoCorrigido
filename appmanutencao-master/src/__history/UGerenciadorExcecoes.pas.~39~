@@ -1,0 +1,107 @@
+unit UGerenciadorExcecoes;
+
+interface
+
+uses
+  System.SysUtils, Forms, System.Classes, Vcl.Dialogs;
+
+type
+  TGerenciadorExcecoes = class
+  private
+    ArquivoLog: String;
+    PastaServidor: String;
+  public
+    constructor Create;
+    procedure TrataException(Sender: TObject; E: Exception);
+    procedure GravarLog(Value: String);
+    procedure LimparDiretorio;
+  end;
+
+
+implementation
+
+
+{ TGerenciadorExcecoes }
+
+constructor TGerenciadorExcecoes.Create;
+begin
+  ArquivoLog := ExtractFilePath(ParamStr(0)) + 'LogErros\ArquivoLogErros.log';
+  PastaServidor :=  ExtractFilePath(ParamStr(0)) + 'Servidor\';
+  Application.onException := TrataException;
+end;
+
+procedure TGerenciadorExcecoes.GravarLog(Value: String);
+var
+  txtLog: TextFile;
+begin
+  AssignFile(txtLog, ArquivoLog);
+  if FileExists(ArquivoLog) then
+    Append(txtLog)
+  else
+    Rewrite(txtLog);
+
+  Writeln(txtLog, Value);
+  CloseFile(txtLog);
+end;
+
+procedure TGerenciadorExcecoes.TrataException(Sender: TObject; E: Exception);
+begin
+
+  GravarLog(StringofChar('=', 120));
+  GravarLog('Inclusão: ' + FormatDateTime('dd-mm-yyy hh:mm:ss', Now));
+  if TComponent(Sender) is TForm then
+    begin
+      GravarLog('Formulário: ' + TForm(Sender).Name);
+      GravarLog('Caption do Formulário: ' + TForm(Sender).Caption);
+      GravarLog('Nome da Classe: ' + E.ClassName);
+      GravarLog('Erro: ' + E.Message);
+      GravarLog('Arquivos Removidos da Pasta: ' + PastaServidor);
+    end
+  else
+    begin
+      GravarLog('Formulário: ' + TForm(TComponent(Sender).Owner).Name);
+      GravarLog('Caption do Formulário:: ' + TForm(TComponent(Sender).Owner).Caption);
+      GravarLog('Nome da Classe: ' + E.ClassName);
+      GravarLog('Erro: ' + E.Message);
+      GravarLog('Arquivos Removidos da Pasta: ' + PastaServidor);
+    end;
+
+  LimparDiretorio;
+  GravarLog(StringofChar('=', 120));
+  ShowMessage('Ocorreu um problema ao realizar o procedimento: ' + E.Message + #13 + #13 + #13
+    + 'Arquivos removidos da pasta: ' + PastaServidor + #13 + #13 + #13
+    + 'Log salvo em: ' + ArquivoLog);
+end;
+
+procedure TGerenciadorExcecoes.LimparDiretorio;
+var
+  SR: TSearchRec;
+  I: integer;
+  Diretorio: String;
+begin
+  Diretorio := PastaServidor;
+  I := FindFirst(Diretorio + '*.*', faAnyFile, SR);
+  while I = 0 do
+  begin
+    if (SR.Attr and faDirectory) <> faDirectory then
+    begin
+      if not DeleteFile(PChar(Diretorio + SR.Name)) then
+      begin
+        Exit;
+      end;
+    end;
+    I := FindNext(SR);
+  end;
+
+end;
+
+var
+  MinhaExcecao: TGerenciadorExcecoes;
+
+initialization
+  MinhaExcecao := TGerenciadorExcecoes.Create;
+
+finalization
+  MinhaExcecao.Free;
+
+end.
